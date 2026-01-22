@@ -1,13 +1,17 @@
 # Mamamia Benchmarking Suite
 
-This directory contains tools to evaluate the performance, throughput, and latency of the Mamamia message delivery system.
+This directory contains tools to evaluate the performance, throughput, latency, and correctness of the Mamamia message delivery system.
 
 ## Performance Metrics
 
 The suite measures:
 - **Producer Throughput**: Messages per second (msg/s) during ingestion.
 - **Consumer Throughput**: Messages per second (msg/s) for the full cycle (Acquire -> Settle).
-- **End-to-End Latency**: Time from message production to successful settlement. **Note:** Producer and Consumer run concurrently to provide realistic "in-flight" latency measurements.
+- **Efficiency**: Throughput per active participant (TPS / Max(Consumers, Producers)). High efficiency indicates the scheduler is not the bottleneck.
+- **End-to-End Latency**: Time from message production to successful settlement.
+- **Queue Depth**: Maximum number of pending messages in the backlog.
+- **In-Flight Leases**: Maximum number of messages concurrently leased but not yet settled.
+- **Correctness**: Validates that every message is processed exactly once, with zero duplicates or lost messages.
 
 ## Running the Benchmarks
 
@@ -25,10 +29,18 @@ python benchmarks/suite.py --addr localhost:9000 --config benchmarks/default_con
 ```
 
 ### 2. Internal Server (Convenience)
-Run everything in a single process:
+Run everything in a single process (useful for quick logic verification):
 ```bash
 python benchmarks/suite.py --internal-server
 ```
+
+## Reports
+
+The suite generates a detailed HTML report (`benchmarks/report.html`) containing:
+- **Comparative Table**: Metrics for all configured scenarios side-by-side.
+- **Latency Statistics**: Average and P95 latency.
+- **Scaling Insights**: Auto-generated observations on optimal concurrency.
+- **Correctness Verification**: Confirmation of lease integrity.
 
 ## Configuration
 
@@ -40,12 +52,11 @@ Example scenario:
 ```json
 {
     "name": "High Concurrency Stress",
-    "msgs": 5000,
-    "producers": 5,
-    "consumers": 10
+    "msgs": 10000,
+    "producers": 10,
+    "consumers": 50
 }
 ```
-
 
 ## Profiling
 
