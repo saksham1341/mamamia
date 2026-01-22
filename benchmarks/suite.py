@@ -193,7 +193,8 @@ def generate_html_report(results, output_path):
                         <th>Scenario</th>
                         <th>Transport</th>
                         <th>Messages</th>
-                        <th>Prod/Cons</th>
+                        <th>Producers</th>
+                        <th>Consumers</th>
                         <th>Prod TPS</th>
                         <th>Cons TPS</th>
                         <th>Avg Latency</th>
