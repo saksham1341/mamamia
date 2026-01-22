@@ -106,7 +106,9 @@ python benchmarks/suite.py --internal-server
 
 ## Future Work
 
-- **Shared Backends**: Implement Redis or SQL-based backends for `IMessageStorage`, `IStateStore`, and `ILeaseManager` to support multi-worker and multi-instance deployments.
+- **Shared Backends**: Implement Redis or SQL-based backends to support multi-worker and multi-instance deployments.
+    - **SQLite Backend**: Use SQLite in WAL mode for persistent, multi-worker support on a single node.
+    - **Redis Backend**: Use Redis for high-throughput, distributed state and lease management.
 - **Multiplexing**: Support multiple concurrent requests over a single TCP connection.
 - **Retry Backoff**: Implement exponential backoff for failed message retries.
 - **Management UI**: A dashboard to monitor logs and consumer groups.
