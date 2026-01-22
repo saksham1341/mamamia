@@ -26,6 +26,8 @@ mamamia/
 
 ## Getting Started
 
+> **Note:** Currently, Mamamia only supports single-worker server deployments (e.g., `uvicorn --workers 1`). This is because the only implemented backends are In-Memory, which do not share state across processes.
+
 ### 1. Install Dependencies
 ```bash
 python -m venv venv
@@ -53,3 +55,10 @@ python tests/simulation.py
 
 ## Logic: Base Offset Advancement
 The `base_offset` of a consumer group only advances when the message at that offset is marked as `PROCESSED` or `DEAD`. This ensures that "gaps" in processing are never skipped, even if later messages are finished out of order.
+
+## Future Work
+
+- **Shared Backends**: Implement Redis or SQL-based backends for `IMessageStorage`, `IStateStore`, and `ILeaseManager` to support multi-worker and multi-instance deployments.
+- **Custom Protocol**: Transition from REST to a custom binary protocol (e.g., over TCP or gRPC) for lower latency and higher throughput.
+- **Retry Backoff**: Implement exponential backoff for failed message retries.
+- **Management UI**: A web dashboard to monitor log sizes, consumer group offsets, and dead-letter queues.
