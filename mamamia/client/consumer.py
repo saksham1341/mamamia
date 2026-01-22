@@ -7,13 +7,18 @@ from mamamia.core.models import Message
 
 class ConsumerClient:
     def __init__(
-        self, base_url: str, log_id: str, group_id: str, client_id: Optional[str] = None
+        self,
+        base_url: str,
+        log_id: str,
+        group_id: str,
+        client_id: Optional[str] = None,
+        timeout: float = 60.0,
     ):
         self.base_url = base_url.rstrip("/")
         self.log_id = log_id
         self.group_id = group_id
         self.client_id = client_id or str(uuid.uuid4())
-        self._client = httpx.AsyncClient()
+        self._client = httpx.AsyncClient(timeout=timeout)
 
     async def close(self):
         await self._client.aclose()
