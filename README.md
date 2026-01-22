@@ -14,8 +14,8 @@ Mamamia is a high-performance, modular message delivery system designed for asyn
 ## Performance
 
 Mamamia is optimized for speed. Benchmarks on a single-worker server show:
-- **Throughput**: ~2,500 messages per second.
-- **Latency**: ~15ms - 90ms (E2E).
+- **Throughput**: Up to ~3,200 messages per second.
+- **Latency**: < 10ms (E2E) under sufficient consumer capacity.
 
 ## Architecture
 
