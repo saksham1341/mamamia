@@ -104,6 +104,11 @@ Run the performance suite:
 python benchmarks/suite.py --internal-server
 ```
 
+You can also run against an external server using a configuration file:
+```bash
+python benchmarks/suite.py --addr localhost:9000 --config benchmarks/default_config.json
+```
+
 ## Future Work
 
 - **Shared Backends**: Implement Redis or SQL-based backends to support multi-worker and multi-instance deployments.
