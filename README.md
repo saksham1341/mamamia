@@ -8,21 +8,33 @@ Mamamia is a modular, high-performance message delivery system designed for asyn
 - **Multi-Log Support**: Isolate different message streams within a single server.
 - **Consumer Groups**: Multiple consumers can collaborate to process a log, each receiving exclusive access to messages.
 - **JIT Leasing**: Consumers lease messages just before processing, preventing hoarding and ensuring responsiveness.
-- **Modular Architecture**: Swap Storage, State, and Lease backends (e.g., Memory, Redis, SQL) with ease.
-- **REST API**: Simple, extensible interface for producers and consumers.
+- **Modular Architecture**: Swap Transports (HTTP, TCP), Storage, State, and Lease backends with ease.
+- **High Performance TCP Protocol**: Custom binary protocol utilizing MessagePack for minimal overhead and ultra-low latency.
+- **REST API**: Standard extensible interface for easy integration.
 
 ## Architecture
 
 ```text
 mamamia/
-├── core/               # Shared models and abstract interfaces
-├── server/             # Orchestration logic and backend implementations
+├── core/               # Shared models, interfaces, and protocol definitions
+├── server/             # Orchestration logic and transport frontends (HTTP, TCP)
 │   ├── storage/        # Message log storage
 │   ├── state/          # Offset and message state tracking
 │   ├── lease/          # Time-based lock management
-│   └── api/            # FastAPI integration
-└── client/             # Python library for producers and consumers
+│   └── api/            # FastAPI & TCP integration
+└── client/             # Python library with swapable transports
 ```
+
+## Performance
+
+Mamamia is designed for high performance. Initial benchmarks comparing the REST (HTTP) transport and the custom Binary (TCP) transport show significant improvements:
+
+| Metric | REST (HTTP) | Binary (TCP) | Improvement |
+| :--- | :--- | :--- | :--- |
+| **Throughput** | ~160 msg/s | **~2,700 msg/s** | **~17x Faster** |
+| **Avg Latency** | ~25ms - 1700ms | **~15ms - 90ms** | **Significant reduction** |
+
+*Note: Benchmarks were performed on a single-worker internal server.*
 
 ## Getting Started
 

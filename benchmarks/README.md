@@ -55,5 +55,5 @@ Example scenario:
 To identify bottlenecks, use `py-spy`:
 ```bash
 # Record top functions while benchmarking
-py-spy top -- ./venv/bin/python benchmarks/suite.py --internal-server --msgs 5000
+py-spy top -- ./venv/bin/python benchmarks/suite.py --internal-server
 ```

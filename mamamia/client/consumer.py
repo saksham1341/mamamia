@@ -1,39 +1,53 @@
-import httpx
 import uuid
-import asyncio
-from typing import List, Any, Optional, Dict
-from mamamia.core.models import Message
+from typing import Any, Optional, Dict, Union
+from mamamia.core.protocol import Command
+from mamamia.client.transport import ITransport, HttpTransport, TcpTransport
 
 
 class ConsumerClient:
     def __init__(
         self,
-        base_url: str,
+        transport_or_url: Union[str, ITransport],
         log_id: str,
         group_id: str,
         client_id: Optional[str] = None,
-        timeout: float = 60.0,
     ):
-        self.base_url = base_url.rstrip("/")
+        if isinstance(transport_or_url, str):
+            if transport_or_url.startswith("http"):
+                self.transport = HttpTransport(transport_or_url)
+            else:
+                host, port = transport_or_url.split(":")
+                self.transport = TcpTransport(host, int(port))
+        else:
+            self.transport = transport_or_url
+
         self.log_id = log_id
         self.group_id = group_id
         self.client_id = client_id or str(uuid.uuid4())
-        self._client = httpx.AsyncClient(timeout=timeout)
 
     async def close(self):
-        await self._client.aclose()
+        await self.transport.close()
 
     async def acquire_next(self, duration: float = 30.0) -> Optional[Dict[str, Any]]:
-        response = await self._client.post(
-            f"{self.base_url}/logs/{self.log_id}/groups/{self.group_id}/acquire_next",
-            json={"client_id": self.client_id, "duration": duration},
+        response = await self.transport.request(
+            Command.ACQUIRE_NEXT,
+            {
+                "log_id": self.log_id,
+                "group_id": self.group_id,
+                "client_id": self.client_id,
+                "duration": duration,
+            },
         )
-        response.raise_for_status()
-        return response.json()["message"]
+        return response["message"]
 
     async def settle(self, message_id: int, success: bool):
-        response = await self._client.post(
-            f"{self.base_url}/logs/{self.log_id}/groups/{self.group_id}/messages/{message_id}/settle",
-            json={"client_id": self.client_id, "success": success},
+        await self.transport.request(
+            Command.SETTLE,
+            {
+                "log_id": self.log_id,
+                "group_id": self.group_id,
+                "message_id": message_id,
+                "client_id": self.client_id,
+                "success": success,
+            },
         )
-        response.raise_for_status()

@@ -9,10 +9,19 @@ from datetime import datetime
 from mamamia.server.api import app
 from mamamia.client.producer import ProducerClient
 from mamamia.client.consumer import ConsumerClient
+from mamamia.client.transport import HttpTransport, TcpTransport
 
 
-async def run_producer_bench(url, log_id, count, producer_id):
-    producer = ProducerClient(url, log_id)
+async def run_producer_bench(
+    url_or_host, log_id, count, producer_id, transport_type="http"
+):
+    if transport_type == "http":
+        transport = HttpTransport(url_or_host)
+    else:
+        host, port = url_or_host.split(":")
+        transport = TcpTransport(host, int(port))
+
+    producer = ProducerClient(transport, log_id)
     start_time = time.perf_counter()
 
     for i in range(count):
@@ -26,9 +35,15 @@ async def run_producer_bench(url, log_id, count, producer_id):
 
 
 async def run_consumer_bench(
-    url, log_id, group_id, target_count, shared_state, batch_size
+    url_or_host, log_id, group_id, target_count, shared_state, transport_type="http"
 ):
-    consumer = ConsumerClient(url, log_id, group_id)
+    if transport_type == "http":
+        transport = HttpTransport(url_or_host)
+    else:
+        host, port = url_or_host.split(":")
+        transport = TcpTransport(host, int(port))
+
+    consumer = ConsumerClient(transport, log_id, group_id)
     start_time = time.perf_counter()
     processed_locally = 0
     latencies = []
@@ -55,21 +70,27 @@ async def run_consumer_bench(
     return processed_locally, duration, latencies
 
 
-async def run_scenario(url, scenario, internal_server=False):
+async def run_scenario(url_or_host, scenario, internal_server=False):
     server_task = None
     server = None
+    transport_type = scenario.get("transport", "http")
+
     if internal_server:
+        # For internal server, we use 8002 for HTTP and 9000 (default) for TCP
         config = uvicorn.Config(app, host="127.0.0.1", port=8002, log_level="error")
         server = uvicorn.Server(config)
         server_task = asyncio.create_task(server.serve())
         await asyncio.sleep(1)
+        if transport_type == "http":
+            url_or_host = "http://localhost:8002"
+        else:
+            url_or_host = "localhost:9000"
 
     log_id = f"bench-{int(time.time())}"
     group_id = "bench-group"
     msgs = scenario["msgs"]
     producers = scenario["producers"]
     consumers = scenario["consumers"]
-    batch = scenario.get("batch", 50)
 
     start_bench = time.perf_counter()
 
@@ -77,13 +98,17 @@ async def run_scenario(url, scenario, internal_server=False):
     producer_tasks = []
     for i in range(producers):
         count = msgs_per_producer + (1 if i < msgs % producers else 0)
-        producer_tasks.append(run_producer_bench(url, log_id, count, i))
+        producer_tasks.append(
+            run_producer_bench(url_or_host, log_id, count, i, transport_type)
+        )
 
     shared_state = {"processed": 0}
     consumer_tasks = []
     for i in range(consumers):
         consumer_tasks.append(
-            run_consumer_bench(url, log_id, group_id, msgs, shared_state, batch)
+            run_consumer_bench(
+                url_or_host, log_id, group_id, msgs, shared_state, transport_type
+            )
         )
 
     results = await asyncio.gather(
@@ -102,6 +127,7 @@ async def run_scenario(url, scenario, internal_server=False):
 
     metrics = {
         "name": scenario["name"],
+        "transport": transport_type,
         "msgs": msgs,
         "producers": producers,
         "consumers": consumers,
@@ -127,6 +153,7 @@ def generate_html_report(results, output_path):
         rows += f"""
         <tr>
             <td>{r["name"]}</td>
+            <td>{r["transport"]}</td>
             <td>{r["msgs"]}</td>
             <td>{r["producers"]}</td>
             <td>{r["consumers"]}</td>
@@ -142,36 +169,42 @@ def generate_html_report(results, output_path):
     <head>
         <title>Mamamia Benchmark Report</title>
         <style>
-            body {{ font-family: sans-serif; margin: 40px; }}
-            table {{ border-collapse: collapse; width: 100%; }}
+            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 40px; background-color: #f4f7f6; color: #333; }}
+            .container {{ max-width: 1200px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+            h1 {{ color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }}
+            table {{ border-collapse: collapse; width: 100%; margin-top: 20px; }}
             th, td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
-            th {{ background-color: #f2f2f2; }}
+            th {{ background-color: #3498db; color: white; }}
             tr:nth-child(even) {{ background-color: #f9f9f9; }}
-            .header {{ margin-bottom: 20px; }}
+            tr:hover {{ background-color: #f1f1f1; }}
+            .header-info {{ margin-bottom: 20px; font-style: italic; color: #666; }}
+            .badge {{ padding: 4px 8px; border-radius: 4px; font-size: 0.9em; font-weight: bold; }}
+            .badge-http {{ background-color: #e67e22; color: white; }}
+            .badge-tcp {{ background-color: #27ae60; color: white; }}
         </style>
     </head>
     <body>
-        <div class="header">
-            <h1>Mamamia Benchmark Report</h1>
-            <p>Generated at: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+        <div class="container">
+            <h1>Mamamia Performance Report</h1>
+            <p class="header-info">Generated at: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Scenario</th>
+                        <th>Transport</th>
+                        <th>Messages</th>
+                        <th>Prod/Cons</th>
+                        <th>Prod TPS</th>
+                        <th>Cons TPS</th>
+                        <th>Avg Latency</th>
+                        <th>P95 Latency</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.replace("<td>http</td>", '<td><span class="badge badge-http">HTTP</span></td>').replace("<td>tcp</td>", '<td><span class="badge badge-tcp">TCP</span></td>')}
+                </tbody>
+            </table>
         </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Scenario</th>
-                    <th>Messages</th>
-                    <th>Producers</th>
-                    <th>Consumers</th>
-                    <th>Prod TPS</th>
-                    <th>Cons TPS</th>
-                    <th>Avg Latency</th>
-                    <th>P95 Latency</th>
-                </tr>
-            </thead>
-            <tbody>
-                {rows}
-            </tbody>
-        </table>
     </body>
     </html>
     """
@@ -180,14 +213,16 @@ def generate_html_report(results, output_path):
 
 
 def print_cli_report(results):
-    print("\n" + "=" * 80)
-    print(f"{'Scenario':<30} | {'TPS':<10} | {'Avg Lat':<10} | {'P95 Lat':<10}")
-    print("-" * 80)
+    print("\n" + "=" * 90)
+    print(
+        f"{'Scenario':<25} | {'Protocol':<8} | {'TPS':<10} | {'Avg Lat':<10} | {'P95 Lat':<10}"
+    )
+    print("-" * 90)
     for r in results:
         print(
-            f"{r['name']:<30} | {r['c_throughput']:<10.2f} | {r['avg_latency']:<10.2f} | {r['p95_latency']:<10.2f}"
+            f"{r['name']:<25} | {r['transport']:<8} | {r['c_throughput']:<10.2f} | {r['avg_latency']:<10.2f} | {r['p95_latency']:<10.2f}"
         )
-    print("=" * 80 + "\n")
+    print("=" * 90 + "\n")
 
 
 async def main():
@@ -213,7 +248,9 @@ async def main():
 
     results = []
     for scenario in config["scenarios"]:
-        print(f"Running scenario: {scenario['name']}...")
+        print(
+            f"Running scenario: {scenario['name']} ({scenario.get('transport', 'http')})..."
+        )
         metrics = await run_scenario(args.url, scenario, args.internal_server)
         results.append(metrics)
 

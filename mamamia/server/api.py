@@ -1,15 +1,28 @@
+import asyncio
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Any, List, Optional
 from .registry import LogRegistry
+from .tcp import TcpFrontend
 
 app = FastAPI(title="Mamamia Message Delivery System")
 registry = LogRegistry()
+tcp_server: Optional[TcpFrontend] = None
 
 
 @app.on_event("startup")
 async def startup_event():
+    global tcp_server
     registry.start_reaper(interval=30.0)
+    # Start TCP frontend in the background
+    tcp_server = TcpFrontend(registry, port=9000)
+    asyncio.create_task(tcp_server.start())
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    if tcp_server:
+        await tcp_server.stop()
 
 
 class ProduceRequest(BaseModel):

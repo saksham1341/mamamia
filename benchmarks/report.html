@@ -3,80 +3,90 @@
     <head>
         <title>Mamamia Benchmark Report</title>
         <style>
-            body { font-family: sans-serif; margin: 40px; }
-            table { border-collapse: collapse; width: 100%; }
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 40px; background-color: #f4f7f6; color: #333; }
+            .container { max-width: 1200px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+            table { border-collapse: collapse; width: 100%; margin-top: 20px; }
             th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-            th { background-color: #f2f2f2; }
+            th { background-color: #3498db; color: white; }
             tr:nth-child(even) { background-color: #f9f9f9; }
-            .header { margin-bottom: 20px; }
+            tr:hover { background-color: #f1f1f1; }
+            .header-info { margin-bottom: 20px; font-style: italic; color: #666; }
+            .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.9em; font-weight: bold; }
+            .badge-http { background-color: #e67e22; color: white; }
+            .badge-tcp { background-color: #27ae60; color: white; }
         </style>
     </head>
     <body>
-        <div class="header">
-            <h1>Mamamia Benchmark Report</h1>
-            <p>Generated at: 2026-01-22 22:56:38</p>
-        </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Scenario</th>
-                    <th>Messages</th>
-                    <th>Producers</th>
-                    <th>Consumers</th>
-                    <th>Prod TPS</th>
-                    <th>Cons TPS</th>
-                    <th>Avg Latency</th>
-                    <th>P95 Latency</th>
-                </tr>
-            </thead>
-            <tbody>
-                
+        <div class="container">
+            <h1>Mamamia Performance Report</h1>
+            <p class="header-info">Generated at: 2026-01-22 23:41:53</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Scenario</th>
+                        <th>Transport</th>
+                        <th>Messages</th>
+                        <th>Prod/Cons</th>
+                        <th>Prod TPS</th>
+                        <th>Cons TPS</th>
+                        <th>Avg Latency</th>
+                        <th>P95 Latency</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
         <tr>
-            <td>Single Worker Baseline</td>
+            <td>HTTP Baseline</td>
+            <td><span class="badge badge-http">HTTP</span></td>
             <td>1000</td>
             <td>1</td>
             <td>1</td>
-            <td>130.78</td>
-            <td>130.78</td>
-            <td>1953.50ms</td>
-            <td>2750.61ms</td>
+            <td>151.21</td>
+            <td>151.21</td>
+            <td>1675.16ms</td>
+            <td>2328.57ms</td>
         </tr>
         
         <tr>
-            <td>Producer Heavy</td>
-            <td>2000</td>
-            <td>5</td>
+            <td>TCP Baseline</td>
+            <td><span class="badge badge-tcp">TCP</span></td>
+            <td>1000</td>
             <td>1</td>
-            <td>148.36</td>
-            <td>148.36</td>
-            <td>6033.19ms</td>
-            <td>8024.97ms</td>
-        </tr>
-        
-        <tr>
-            <td>Consumer Heavy (Atomic JIT)</td>
-            <td>2000</td>
             <td>1</td>
-            <td>5</td>
-            <td>140.31</td>
-            <td>140.31</td>
-            <td>15.75ms</td>
-            <td>19.13ms</td>
+            <td>2601.68</td>
+            <td>2601.68</td>
+            <td>98.92ms</td>
+            <td>148.51ms</td>
         </tr>
         
         <tr>
-            <td>High Concurrency Stress</td>
-            <td>5000</td>
+            <td>HTTP Concurrency</td>
+            <td><span class="badge badge-http">HTTP</span></td>
+            <td>2000</td>
+            <td>2</td>
             <td>5</td>
-            <td>10</td>
-            <td>137.11</td>
-            <td>137.11</td>
-            <td>159.01ms</td>
-            <td>179.26ms</td>
+            <td>147.88</td>
+            <td>147.88</td>
+            <td>30.27ms</td>
+            <td>36.25ms</td>
         </tr>
         
-            </tbody>
-        </table>
+        <tr>
+            <td>TCP Concurrency</td>
+            <td><span class="badge badge-tcp">TCP</span></td>
+            <td>2000</td>
+            <td>2</td>
+            <td>5</td>
+            <td>2405.81</td>
+            <td>2405.81</td>
+            <td>32.63ms</td>
+            <td>78.36ms</td>
+        </tr>
+        
+                </tbody>
+            </table>
+        </div>
     </body>
     </html>
     

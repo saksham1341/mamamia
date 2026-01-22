@@ -5,32 +5,32 @@
     },
     "scenarios": [
         {
-            "name": "Single Worker Baseline",
+            "name": "HTTP Baseline",
+            "transport": "http",
             "msgs": 1000,
             "producers": 1,
-            "consumers": 1,
-            "batch": 50
+            "consumers": 1
         },
         {
-            "name": "Producer Heavy",
-            "msgs": 2000,
-            "producers": 5,
-            "consumers": 1,
-            "batch": 50
-        },
-        {
-            "name": "Consumer Heavy (Atomic JIT)",
-            "msgs": 2000,
+            "name": "TCP Baseline",
+            "transport": "tcp",
+            "msgs": 1000,
             "producers": 1,
-            "consumers": 5,
-            "batch": 50
+            "consumers": 1
         },
         {
-            "name": "High Concurrency Stress",
-            "msgs": 5000,
-            "producers": 5,
-            "consumers": 10,
-            "batch": 100
+            "name": "HTTP Concurrency",
+            "transport": "http",
+            "msgs": 2000,
+            "producers": 2,
+            "consumers": 5
+        },
+        {
+            "name": "TCP Concurrency",
+            "transport": "tcp",
+            "msgs": 2000,
+            "producers": 2,
+            "consumers": 5
         }
     ]
 }
