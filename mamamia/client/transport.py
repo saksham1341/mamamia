@@ -27,8 +27,8 @@ class TcpTransport(ITransport):
 
     async def _ensure_connected(self):
         if self._writer is None or self._reader is None:
-            self._reader, self._writer = await asyncio.open_connection(
-                self.host, self.port
+            self._reader, self._writer = await asyncio.wait_for(
+                asyncio.open_connection(self.host, self.port), timeout=self.timeout
             )
 
     async def _send_and_receive(self, command: Command, payload: Dict[str, Any]) -> Any:
@@ -42,7 +42,13 @@ class TcpTransport(ITransport):
         writer.write(data)
         await writer.drain()
 
-        version, cmd, body = await read_message(reader)
+        version, cmd, body = await asyncio.wait_for(
+            read_message(reader), timeout=self.timeout
+        )
+
+        if cmd != command:
+            raise ValueError(f"Expected command {command}, got {cmd}")
+
         if isinstance(body, dict) and "error" in body:
             raise Exception(body["error"])
         return body

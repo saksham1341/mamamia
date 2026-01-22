@@ -11,11 +11,7 @@ class Command(IntEnum):
     SETTLE = 3
 
 
-class ResponseStatus(IntEnum):
-    OK = 0
-    ERROR = 1
-    CONFLICT = 2
-    FORBIDDEN = 3
+MAX_MESSAGE_SIZE = 10 * 1024 * 1024  # 10MB limit
 
 
 def pack_message(command: int, body: Any) -> bytes:
@@ -36,6 +32,9 @@ async def read_message(reader: asyncio.StreamReader) -> Tuple[int, int, Any]:
     """Read a message from an asyncio reader."""
     length_bytes = await reader.readexactly(4)
     length = struct.unpack("!I", length_bytes)[0]
+
+    if length > MAX_MESSAGE_SIZE:
+        raise ValueError(f"Message size {length} exceeds limit {MAX_MESSAGE_SIZE}")
 
     data = await reader.readexactly(length)
     version, command = struct.unpack("!BB", data[:2])

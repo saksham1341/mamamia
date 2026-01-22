@@ -13,8 +13,13 @@ class ConsumerClient:
         client_id: Optional[str] = None,
     ):
         if isinstance(transport_or_addr, str):
-            host, port = transport_or_addr.split(":")
-            self.transport = TcpTransport(host, int(port))
+            if ":" in transport_or_addr:
+                host, port_str = transport_or_addr.split(":", 1)
+                port = int(port_str)
+            else:
+                host = transport_or_addr
+                port = 9000
+            self.transport = TcpTransport(host, port)
         else:
             self.transport = transport_or_addr
 

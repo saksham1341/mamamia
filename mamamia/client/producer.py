@@ -6,8 +6,13 @@ from mamamia.client.transport import ITransport, TcpTransport
 class ProducerClient:
     def __init__(self, transport_or_addr: Union[str, ITransport], log_id: str):
         if isinstance(transport_or_addr, str):
-            host, port = transport_or_addr.split(":")
-            self.transport = TcpTransport(host, int(port))
+            if ":" in transport_or_addr:
+                host, port_str = transport_or_addr.split(":", 1)
+                port = int(port_str)
+            else:
+                host = transport_or_addr
+                port = 9000
+            self.transport = TcpTransport(host, port)
         else:
             self.transport = transport_or_addr
         self.log_id = log_id
