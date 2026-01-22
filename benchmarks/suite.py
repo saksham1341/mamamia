@@ -12,13 +12,8 @@ async def run_producer_bench(url, log_id, count, batch_size):
     producer = ProducerClient(url, log_id)
     start_time = time.perf_counter()
 
-    # We send in parallel batches to saturate the server
-    for i in range(0, count, batch_size):
-        tasks = [
-            producer.send(payload={"data": "bench"}, metadata={"ts": time.time()})
-            for _ in range(min(batch_size, count - i))
-        ]
-        await asyncio.gather(*tasks)
+    for _ in range(count):
+        await producer.send(payload={"data": "bench"}, metadata={"ts": time.time()})
 
     duration = time.perf_counter() - start_time
     await producer.close()
@@ -37,27 +32,16 @@ async def run_consumer_bench(url, log_id, group_id, count, batch_size):
             await asyncio.sleep(0.1)
             continue
 
-        acquire_tasks = []
         for msg in messages:
-            acquire_tasks.append(consumer.acquire(msg["id"]))
-
-        results = await asyncio.gather(*acquire_tasks)
-
-        settle_tasks = []
-        for i, success in enumerate(results):
+            success = await consumer.acquire(msg["id"])
             if success:
-                msg = messages[i]
-                settle_tasks.append(consumer.settle(msg["id"], success=True))
+                await consumer.settle(msg["id"], success=True)
                 processed += 1
-                # Latency: time from produce metadata to now (not perfect but indicative)
                 if "ts" in (msg.get("metadata") or {}):
                     latencies.append(time.time() - msg["metadata"]["ts"])
 
-        if settle_tasks:
-            await asyncio.gather(*settle_tasks)
-
-        if processed >= count:
-            break
+            if processed >= count:
+                break
 
     duration = time.perf_counter() - start_time
     await consumer.close()

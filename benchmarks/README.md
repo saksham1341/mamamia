@@ -9,6 +9,8 @@ The suite measures:
 - **Consumer Throughput**: Messages per second (msg/s) for the full cycle (Poll -> Acquire -> Settle).
 - **End-to-End Latency**: Time from message production to successful settlement.
 
+Note: The benchmark suite performs send and acquire/settle operations sequentially within each batch loop to ensure reliability and avoid connection pool timeouts.
+
 ## Running the Benchmarks
 
 ### 1. External Server (Recommended for accuracy)
