@@ -7,7 +7,7 @@ This directory contains tools to evaluate the performance, throughput, and laten
 The suite measures:
 - **Producer Throughput**: Messages per second (msg/s) during ingestion.
 - **Consumer Throughput**: Messages per second (msg/s) for the full cycle (Poll -> Acquire -> Settle).
-- **End-to-End Latency**: Time from message production to successful settlement.
+- **End-to-End Latency**: Time from message production to successful settlement. **Note:** Producer and Consumer run concurrently to provide realistic "in-flight" latency measurements.
 
 Note: The benchmark suite performs send and acquire/settle operations sequentially within each batch loop to ensure reliability and avoid connection pool timeouts.
 

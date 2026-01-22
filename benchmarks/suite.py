@@ -75,24 +75,34 @@ async def main():
     log_id = f"bench-log-{int(time.time())}"
     group_id = "bench-group"
 
-    print(f"\n--- Starting Producer Benchmark ({args.msgs} messages) ---")
-    p_count, p_duration = await run_producer_bench(
-        args.url, log_id, args.msgs, args.batch
-    )
-    print(f"Result: {p_count} messages produced in {p_duration:.2f}s")
-    print(f"Throughput: {p_count / p_duration:.2f} msg/s")
+    print(f"\n--- Starting Concurrent Benchmark ({args.msgs} messages) ---")
+    start_bench = time.perf_counter()
 
-    print(f"\n--- Starting Consumer Benchmark ({args.msgs} messages) ---")
-    c_count, c_duration, latencies = await run_consumer_bench(
-        args.url, log_id, group_id, args.msgs, args.batch
+    # Run producer and consumer in parallel
+    results = await asyncio.gather(
+        run_producer_bench(args.url, log_id, args.msgs, args.batch),
+        run_consumer_bench(args.url, log_id, group_id, args.msgs, args.batch),
     )
-    print(f"Result: {c_count} messages consumed in {c_duration:.2f}s")
-    print(f"Throughput: {c_count / c_duration:.2f} msg/s")
+
+    total_duration = time.perf_counter() - start_bench
+    (p_count, p_duration), (c_count, c_duration, latencies) = results
+
+    print(
+        f"\nProducer Result: {p_count} messages in {p_duration:.2f}s ({p_count / p_duration:.2f} msg/s)"
+    )
+    print(
+        f"Consumer Result: {c_count} messages in {c_duration:.2f}s ({c_count / c_duration:.2f} msg/s)"
+    )
+    print(f"Total Test Duration: {total_duration:.2f}s")
 
     if latencies:
-        print(f"Avg E2E Latency: {statistics.mean(latencies) * 1000:.2f}ms")
-        print(f"Min Latency: {min(latencies) * 1000:.2f}ms")
-        print(f"Max Latency: {max(latencies) * 1000:.2f}ms")
+        print(f"\nLatency Statistics:")
+        print(f"  Avg E2E Latency: {statistics.mean(latencies) * 1000:.2f}ms")
+        print(f"  Min Latency:     {min(latencies) * 1000:.2f}ms")
+        print(f"  Max Latency:     {max(latencies) * 1000:.2f}ms")
+        print(
+            f"  P95 Latency:     {statistics.quantiles(latencies, n=20)[18] * 1000:.2f}ms"
+        )
 
     if server_task and server:
         server.should_exit = True
