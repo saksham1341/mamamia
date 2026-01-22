@@ -183,6 +183,9 @@ def generate_html_report(results, output_path):
             <td>{r["consumers"]}</td>
             <td>{r["p_throughput"]:.2f}</td>
             <td>{r["c_throughput"]:.2f}</td>
+            <td>{r["efficiency"]:.2f}</td>
+            <td>{r["max_queue"]}</td>
+            <td>{r["max_inflight"]}</td>
             <td>{r["avg_latency"]:.2f}ms</td>
             <td>{r["p95_latency"]:.2f}ms</td>
         </tr>
