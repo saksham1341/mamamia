@@ -5,32 +5,60 @@
     },
     "scenarios": [
         {
-            "name": "HTTP Baseline",
+            "name": "HTTP Single-Worker Baseline",
             "transport": "http",
             "msgs": 1000,
             "producers": 1,
             "consumers": 1
         },
         {
-            "name": "TCP Baseline",
+            "name": "TCP Single-Worker Baseline",
             "transport": "tcp",
             "msgs": 1000,
             "producers": 1,
             "consumers": 1
         },
         {
-            "name": "HTTP Concurrency",
+            "name": "HTTP Producer-Heavy",
+            "transport": "http",
+            "msgs": 2000,
+            "producers": 10,
+            "consumers": 2
+        },
+        {
+            "name": "TCP Producer-Heavy",
+            "transport": "tcp",
+            "msgs": 2000,
+            "producers": 10,
+            "consumers": 2
+        },
+        {
+            "name": "HTTP Consumer-Heavy",
             "transport": "http",
             "msgs": 2000,
             "producers": 2,
-            "consumers": 5
+            "consumers": 10
         },
         {
-            "name": "TCP Concurrency",
+            "name": "TCP Consumer-Heavy",
             "transport": "tcp",
             "msgs": 2000,
             "producers": 2,
-            "consumers": 5
+            "consumers": 10
+        },
+        {
+            "name": "HTTP High-Concurrency Stress",
+            "transport": "http",
+            "msgs": 5000,
+            "producers": 10,
+            "consumers": 20
+        },
+        {
+            "name": "TCP High-Concurrency Stress",
+            "transport": "tcp",
+            "msgs": 5000,
+            "producers": 10,
+            "consumers": 20
         }
     ]
 }

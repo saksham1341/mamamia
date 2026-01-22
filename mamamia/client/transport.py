@@ -112,25 +112,6 @@ class TcpTransport(ITransport):
                 version, cmd, body = await read_message(reader)
                 return body
 
-            except (
-                asyncio.IncompleteReadError,
-                ConnectionResetError,
-                BrokenPipeError,
-                ConnectionError,
-            ):
-                # Try to reconnect once
-                self._writer = None
-                self._reader = None
-                await self._ensure_connected()
-                if self._writer is None or self._reader is None:
-                    raise ConnectionError("Failed to reconnect to server")
-
-                data = pack_message(command, payload)
-                self._writer.write(data)
-                await self._writer.drain()
-                version, cmd, body = await read_message(self._reader)
-                return body
-
     async def close(self):
         if self._writer:
             self._writer.close()
