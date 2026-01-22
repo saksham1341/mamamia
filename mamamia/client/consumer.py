@@ -23,25 +23,13 @@ class ConsumerClient:
     async def close(self):
         await self._client.aclose()
 
-    async def poll(self, limit: int = 10) -> List[Dict[str, Any]]:
-        response = await self._client.get(
-            f"{self.base_url}/logs/{self.log_id}/groups/{self.group_id}/poll",
-            params={"limit": limit},
+    async def acquire_next(self, duration: float = 30.0) -> Optional[Dict[str, Any]]:
+        response = await self._client.post(
+            f"{self.base_url}/logs/{self.log_id}/groups/{self.group_id}/acquire_next",
+            json={"client_id": self.client_id, "duration": duration},
         )
         response.raise_for_status()
-        return response.json()["messages"]
-
-    async def acquire(self, message_id: int, duration: float = 30.0) -> bool:
-        try:
-            response = await self._client.post(
-                f"{self.base_url}/logs/{self.log_id}/groups/{self.group_id}/messages/{message_id}/acquire",
-                json={"client_id": self.client_id, "duration": duration},
-            )
-            return response.status_code == 200
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 409:
-                return False
-            raise
+        return response.json()["message"]
 
     async def settle(self, message_id: int, success: bool):
         response = await self._client.post(

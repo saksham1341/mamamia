@@ -59,6 +59,8 @@ The `base_offset` of a consumer group only advances when the message at that off
 ## Future Work
 
 - **Shared Backends**: Implement Redis or SQL-based backends for `IMessageStorage`, `IStateStore`, and `ILeaseManager` to support multi-worker and multi-instance deployments.
+    - **SQLite Backend**: Use SQLite in WAL mode for persistent, multi-worker support on a single node.
+    - **Redis Backend**: Use Redis for high-throughput, distributed state and lease management.
 - **Custom Protocol**: Transition from REST to a custom binary protocol (e.g., over TCP or gRPC) for lower latency and higher throughput.
 - **Retry Backoff**: Implement exponential backoff for failed message retries.
 - **Management UI**: A web dashboard to monitor log sizes, consumer group offsets, and dead-letter queues.

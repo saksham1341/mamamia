@@ -1,5 +1,5 @@
 import asyncio
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
 from mamamia.core.interfaces import IStateStore
 from mamamia.core.models import MessageState
 
@@ -43,6 +43,17 @@ class InMemoryStateStore(IStateStore):
             return self._states.get(
                 (log_id, group_id, message_id), MessageState.PENDING
             )
+
+    async def get_message_states(
+        self, log_id: str, group_id: str, message_ids: List[int]
+    ) -> Dict[int, MessageState]:
+        async with self._global_lock:
+            lock = self._get_lock(log_id, group_id)
+        async with lock:
+            return {
+                mid: self._states.get((log_id, group_id, mid), MessageState.PENDING)
+                for mid in message_ids
+            }
 
     async def set_message_state(
         self, log_id: str, group_id: str, message_id: int, state: MessageState

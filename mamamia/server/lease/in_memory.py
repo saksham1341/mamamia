@@ -1,6 +1,6 @@
 import asyncio
 import time
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple, Optional, List
 from mamamia.core.interfaces import ILeaseManager
 from mamamia.core.models import Lease
 
@@ -60,6 +60,23 @@ class InMemoryLeaseManager(ILeaseManager):
                 del self._leases[key]
                 return None
             return lease
+
+    async def get_leases(
+        self, log_id: str, group_id: str, message_ids: List[int]
+    ) -> Dict[int, Optional[Lease]]:
+        async with self._global_lock:
+            lock = self._get_lock(log_id, group_id)
+        async with lock:
+            now = time.time()
+            results = {}
+            for mid in message_ids:
+                key = (log_id, group_id, mid)
+                lease = self._leases.get(key)
+                if lease and lease.expiry < now:
+                    del self._leases[key]
+                    lease = None
+                results[mid] = lease
+            return results
 
     async def reap_expired(self):
         async with self._global_lock:

@@ -22,37 +22,28 @@ async def run_producer_bench(url, log_id, count, producer_id):
     return count, duration
 
 
-async def run_consumer_bench(
-    url, log_id, group_id, target_count, batch_size, shared_state
-):
+async def run_consumer_bench(url, log_id, group_id, target_count, shared_state):
     consumer = ConsumerClient(url, log_id, group_id)
     start_time = time.perf_counter()
     processed_locally = 0
     latencies = []
 
     while shared_state["processed"] < target_count:
-        # Stop if we've been running too long without progress (safety)
-        messages = await consumer.poll(limit=batch_size)
-        if not messages:
+        msg = await consumer.acquire_next(duration=30.0)
+        if not msg:
             if shared_state["processed"] >= target_count:
                 break
             await asyncio.sleep(0.1)
             continue
 
-        for msg in messages:
-            if shared_state["processed"] >= target_count:
-                break
+        await consumer.settle(msg["id"], success=True)
+        shared_state["processed"] += 1
+        processed_locally += 1
+        if "ts" in (msg.get("metadata") or {}):
+            latencies.append(time.time() - msg["metadata"]["ts"])
 
-            success = await consumer.acquire(msg["id"])
-            if success:
-                await consumer.settle(msg["id"], success=True)
-                shared_state["processed"] += 1
-                processed_locally += 1
-                if "ts" in (msg.get("metadata") or {}):
-                    latencies.append(time.time() - msg["metadata"]["ts"])
-
-            if shared_state["processed"] >= target_count:
-                break
+        if shared_state["processed"] >= target_count:
+            break
 
     duration = time.perf_counter() - start_time
     await consumer.close()
@@ -68,7 +59,10 @@ async def main():
     parser.add_argument("--producers", type=int, default=1, help="Number of producers")
     parser.add_argument("--consumers", type=int, default=1, help="Number of consumers")
     parser.add_argument(
-        "--batch", type=int, default=50, help="Batch size for consumer polling"
+        "--batch",
+        type=int,
+        default=50,
+        help="Batch size for internal log scanning (server-side)",
     )
     parser.add_argument(
         "--internal-server",
@@ -109,9 +103,7 @@ async def main():
     consumer_tasks = []
     for i in range(args.consumers):
         consumer_tasks.append(
-            run_consumer_bench(
-                args.url, log_id, group_id, args.msgs, args.batch, shared_state
-            )
+            run_consumer_bench(args.url, log_id, group_id, args.msgs, shared_state)
         )
 
     # Run producers and consumers in parallel
@@ -123,10 +115,7 @@ async def main():
     p_results, c_results = results
 
     total_p_count = sum(r[0] for r in p_results)
-    avg_p_duration = sum(r[1] for r in p_results) / len(p_results)
-
     total_c_count = sum(r[0] for r in c_results)
-    avg_c_duration = sum(r[1] for r in c_results) / len(c_results)
 
     all_latencies = []
     for r in c_results:

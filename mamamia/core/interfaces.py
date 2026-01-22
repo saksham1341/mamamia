@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 from .models import Message, MessageState, Lease
 
 
@@ -32,6 +32,12 @@ class IStateStore(ABC):
     async def get_message_state(
         self, log_id: str, group_id: str, message_id: int
     ) -> MessageState:
+        pass
+
+    @abstractmethod
+    async def get_message_states(
+        self, log_id: str, group_id: str, message_ids: List[int]
+    ) -> Dict[int, MessageState]:
         pass
 
     @abstractmethod
@@ -72,6 +78,12 @@ class ILeaseManager(ABC):
     async def get_lease(
         self, log_id: str, group_id: str, message_id: int
     ) -> Optional[Lease]:
+        pass
+
+    @abstractmethod
+    async def get_leases(
+        self, log_id: str, group_id: str, message_ids: List[int]
+    ) -> Dict[int, Optional[Lease]]:
         pass
 
     @abstractmethod

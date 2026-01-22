@@ -16,28 +16,35 @@ class Orchestrator:
         self.lease_manager = lease_manager
         self._slide_lock = asyncio.Lock()
 
-    async def poll(self, log_id: str, group_id: str, limit: int = 10) -> List[Message]:
-        # 1. Slide the base offset forward first
+    async def acquire_next(
+        self, log_id: str, group_id: str, client_id: str, duration: float = 30.0
+    ) -> Optional[Message]:
+        """Atomically finds and leases the next available message."""
+        # 1. Slide offset
         await self._slide_offset(log_id, group_id)
 
-        results = []
         current_offset = await self.state_store.get_base_offset(log_id, group_id)
-        batch_size = max(limit, 20)
+        batch_size = 20
 
-        while len(results) < limit:
+        while True:
             messages = await self.storage.get_batch(log_id, current_offset, batch_size)
             if not messages:
-                break
+                return None
+
+            msg_ids = [msg.id for msg in messages]
+            states = await self.state_store.get_message_states(
+                log_id, group_id, msg_ids
+            )
+            leases = await self.lease_manager.get_leases(log_id, group_id, msg_ids)
 
             for msg in messages:
-                state = await self.state_store.get_message_state(
-                    log_id, group_id, msg.id
-                )
-                lease = await self.lease_manager.get_lease(log_id, group_id, msg.id)
+                state = states.get(msg.id, MessageState.PENDING)
+                lease = leases.get(msg.id)
 
                 if state in (MessageState.PROCESSED, MessageState.DEAD):
                     continue
 
+                # Lazy reap
                 if state == MessageState.IN_PROGRESS and not lease:
                     await self.state_store.set_message_state(
                         log_id, group_id, msg.id, MessageState.PENDING
@@ -45,13 +52,13 @@ class Orchestrator:
                     state = MessageState.PENDING
 
                 if state in (MessageState.PENDING, MessageState.FAILED) and not lease:
-                    results.append(msg)
-                    if len(results) >= limit:
-                        break
+                    # Attempt to acquire
+                    if await self.acquire_lease(
+                        log_id, group_id, msg.id, client_id, duration
+                    ):
+                        return msg
 
             current_offset += len(messages)
-
-        return results
 
     async def acquire_lease(
         self,

@@ -25,22 +25,20 @@ async def run_consumer(
     print(f"[Consumer {client_id}] Started.")
 
     while len(results) < expected:
-        messages = await consumer.poll(limit=2)
-        for msg in messages:
-            if await consumer.acquire(msg["id"]):
-                payload = msg["payload"]
-                proc_time = payload.get("processing_time", 0)
-                print(
-                    f"[Consumer {client_id}] Processing {msg['id']} for {proc_time}s..."
-                )
-                await asyncio.sleep(proc_time)
+        msg = await consumer.acquire_next(duration=30.0)
+        if msg:
+            payload = msg["payload"]
+            proc_time = payload.get("processing_time", 0)
+            print(f"[Consumer {client_id}] Processing {msg['id']} for {proc_time}s...")
+            await asyncio.sleep(proc_time)
 
-                print(f"[Consumer {client_id}] Finished: {msg['id']}")
-                results.append(msg["id"])
-                await consumer.settle(msg["id"], success=True)
-                if len(results) >= expected:
-                    break
-        await asyncio.sleep(0.1)
+            print(f"[Consumer {client_id}] Finished: {msg['id']}")
+            results.append(msg["id"])
+            await consumer.settle(msg["id"], success=True)
+            if len(results) >= expected:
+                break
+        else:
+            await asyncio.sleep(0.1)
     await consumer.close()
     print(f"[Consumer {client_id}] Finished.")
 

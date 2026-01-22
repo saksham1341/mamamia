@@ -34,24 +34,15 @@ async def produce(log_id: str, request: ProduceRequest):
     return {"message_id": msg_id}
 
 
-@app.get("/logs/{log_id}/groups/{group_id}/poll")
-async def poll(log_id: str, group_id: str, limit: int = 10):
+@app.post("/logs/{log_id}/groups/{group_id}/acquire_next")
+async def acquire_next(log_id: str, group_id: str, request: LeaseRequest):
     orch = registry.get_orchestrator(log_id)
-    messages = await orch.poll(log_id, group_id, limit)
-    return {"messages": messages}
-
-
-@app.post("/logs/{log_id}/groups/{group_id}/messages/{message_id}/acquire")
-async def acquire(log_id: str, group_id: str, message_id: int, request: LeaseRequest):
-    orch = registry.get_orchestrator(log_id)
-    success = await orch.acquire_lease(
-        log_id, group_id, message_id, request.client_id, request.duration
+    message = await orch.acquire_next(
+        log_id, group_id, request.client_id, request.duration
     )
-    if not success:
-        raise HTTPException(
-            status_code=409, detail="Lease already held or message processed"
-        )
-    return {"status": "acquired"}
+    if not message:
+        return {"message": None}
+    return {"message": message}
 
 
 @app.post("/logs/{log_id}/groups/{group_id}/messages/{message_id}/settle")
