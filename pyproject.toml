@@ -1,0 +1,14 @@
+[project]
+name = "mamamia"
+version = "0.1.0"
+description = "A modular message delivery system with asynchronous processing capabilities."
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "httpx",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
