@@ -6,10 +6,8 @@ This directory contains tools to evaluate the performance, throughput, and laten
 
 The suite measures:
 - **Producer Throughput**: Messages per second (msg/s) during ingestion.
-- **Consumer Throughput**: Messages per second (msg/s) for the full cycle (Poll -> Acquire -> Settle).
+- **Consumer Throughput**: Messages per second (msg/s) for the full cycle (Acquire -> Settle).
 - **End-to-End Latency**: Time from message production to successful settlement. **Note:** Producer and Consumer run concurrently to provide realistic "in-flight" latency measurements.
-
-Note: The benchmark suite performs send and acquire/settle operations sequentially within each batch loop to ensure reliability and avoid connection pool timeouts.
 
 ## Running the Benchmarks
 
@@ -18,12 +16,12 @@ The suite can be configured via a JSON file to run multiple scenarios and genera
 ### 1. External Server (Recommended for accuracy)
 To avoid GIL contention between the server and the benchmark client, start the server in a separate terminal:
 ```bash
-uvicorn mamamia.server.api:app --host 127.0.0.1 --port 8000 --workers 1
+python -m mamamia.server.run --port 9000
 ```
 
 Then run the benchmark suite:
 ```bash
-python benchmarks/suite.py --url http://localhost:8000 --config benchmarks/default_config.json
+python benchmarks/suite.py --addr localhost:9000 --config benchmarks/default_config.json
 ```
 
 ### 2. Internal Server (Convenience)
@@ -44,8 +42,7 @@ Example scenario:
     "name": "High Concurrency Stress",
     "msgs": 5000,
     "producers": 5,
-    "consumers": 10,
-    "batch": 100
+    "consumers": 10
 }
 ```
 

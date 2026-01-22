@@ -6,25 +6,25 @@
     "scenarios": [
         {
             "name": "Single-Worker Baseline",
-            "msgs": 10000,
+            "msgs": 100000,
             "producers": 1,
             "consumers": 1
         },
         {
             "name": "Producer-Heavy",
-            "msgs": 10000,
+            "msgs": 100000,
             "producers": 10,
             "consumers": 2
         },
         {
             "name": "Consumer-Heavy",
-            "msgs": 10000,
+            "msgs": 100000,
             "producers": 2,
             "consumers": 10
         },
         {
             "name": "High-Concurrency Stress",
-            "msgs": 10000,
+            "msgs": 100000,
             "producers": 10,
             "consumers": 50
         }
