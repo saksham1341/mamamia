@@ -21,7 +21,7 @@ uvicorn mamamia.server.api:app --host 127.0.0.1 --port 8000 --workers 1
 
 Then run the benchmark:
 ```bash
-python benchmarks/suite.py --url http://localhost:8000 --msgs 5000 --batch 100
+python benchmarks/suite.py --url http://localhost:8000 --msgs 5000 --producers 2 --consumers 4 --batch 100
 ```
 
 ### 2. Internal Server (Convenience)
@@ -33,7 +33,9 @@ python benchmarks/suite.py --internal-server --msgs 1000
 ## Parameters
 
 - `--msgs`: Total number of messages to process (default: 1000).
-- `--batch`: Number of concurrent requests to fly in parallel (default: 50).
+- `--producers`: Number of concurrent producers (default: 1).
+- `--consumers`: Number of concurrent consumers (default: 1).
+- `--batch`: Number of messages to poll in each consumer batch (default: 50).
 - `--url`: The target server URL.
 - `--internal-server`: If set, the script will spin up its own server instance.
 
