@@ -14,6 +14,8 @@ async def main():
         )
         print(f"Sent message {i} with ID: {msg_id}")
 
+    await producer.close()
+
 
 if __name__ == "__main__":
     asyncio.run(main())
