@@ -1,6 +1,4 @@
-import httpx
 import asyncio
-import uuid
 import struct
 import msgpack
 from abc import ABC, abstractmethod
@@ -18,47 +16,6 @@ class ITransport(ABC):
         pass
 
 
-class HttpTransport(ITransport):
-    def __init__(self, base_url: str, timeout: float = 60.0):
-        self.base_url = base_url.rstrip("/")
-        self._client = httpx.AsyncClient(timeout=timeout)
-
-    async def request(self, command: Command, payload: Dict[str, Any]) -> Any:
-        if command == Command.PRODUCE:
-            log_id = payload.pop("log_id")
-            response = await self._client.post(
-                f"{self.base_url}/logs/{log_id}/messages", json=payload
-            )
-            response.raise_for_status()
-            return response.json()
-
-        elif command == Command.ACQUIRE_NEXT:
-            log_id = payload.pop("log_id")
-            group_id = payload.pop("group_id")
-            response = await self._client.post(
-                f"{self.base_url}/logs/{log_id}/groups/{group_id}/acquire_next",
-                json=payload,
-            )
-            response.raise_for_status()
-            return response.json()
-
-        elif command == Command.SETTLE:
-            log_id = payload.pop("log_id")
-            group_id = payload.pop("group_id")
-            message_id = payload.pop("message_id")
-            response = await self._client.post(
-                f"{self.base_url}/logs/{log_id}/groups/{group_id}/messages/{message_id}/settle",
-                json=payload,
-            )
-            response.raise_for_status()
-            return response.json()
-
-        raise ValueError(f"Unknown command for HTTP transport: {command}")
-
-    async def close(self):
-        await self._client.aclose()
-
-
 class TcpTransport(ITransport):
     def __init__(self, host: str, port: int, timeout: float = 60.0):
         self.host = host
@@ -69,51 +26,50 @@ class TcpTransport(ITransport):
         self._lock = asyncio.Lock()
 
     async def _ensure_connected(self):
-        if self._writer is None:
+        if self._writer is None or self._reader is None:
             self._reader, self._writer = await asyncio.open_connection(
                 self.host, self.port
             )
 
+    async def _send_and_receive(self, command: Command, payload: Dict[str, Any]) -> Any:
+        await self._ensure_connected()
+
+        # We know they are not None because of _ensure_connected()
+        writer: asyncio.StreamWriter = self._writer  # type: ignore
+        reader: asyncio.StreamReader = self._reader  # type: ignore
+
+        data = pack_message(command, payload)
+        writer.write(data)
+        await writer.drain()
+
+        version, cmd, body = await read_message(reader)
+        if isinstance(body, dict) and "error" in body:
+            raise Exception(body["error"])
+        return body
+
     async def request(self, command: Command, payload: Dict[str, Any]) -> Any:
         async with self._lock:
             try:
-                await self._ensure_connected()
-                writer = self._writer
-                reader = self._reader
-                if writer is None or reader is None:
-                    raise ConnectionError("Failed to connect to server")
-
-                data = pack_message(command, payload)
-                writer.write(data)
-                await writer.drain()
-
-                version, cmd, body = await read_message(reader)
-                if isinstance(body, dict) and "error" in body:
-                    raise Exception(body["error"])
-                return body
+                return await self._send_and_receive(command, payload)
             except (
                 asyncio.IncompleteReadError,
                 ConnectionResetError,
                 BrokenPipeError,
                 ConnectionError,
+                OSError,
             ):
                 # Try to reconnect once
                 self._writer = None
                 self._reader = None
-                await self._ensure_connected()
-                writer = self._writer
-                reader = self._reader
-                if writer is None or reader is None:
-                    raise ConnectionError("Failed to reconnect to server")
-
-                data = pack_message(command, payload)
-                writer.write(data)
-                await writer.drain()
-                version, cmd, body = await read_message(reader)
-                return body
+                return await self._send_and_receive(command, payload)
 
     async def close(self):
-        if self._writer:
-            self._writer.close()
-            await self._writer.wait_closed()
-            self._writer = None
+        async with self._lock:
+            if self._writer:
+                self._writer.close()
+                try:
+                    await self._writer.wait_closed()
+                except:
+                    pass
+                self._writer = None
+                self._reader = None

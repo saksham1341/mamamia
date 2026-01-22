@@ -1,18 +1,15 @@
 from typing import Any, Optional, Union
 from mamamia.core.protocol import Command
-from mamamia.client.transport import ITransport, HttpTransport, TcpTransport
+from mamamia.client.transport import ITransport, TcpTransport
 
 
 class ProducerClient:
-    def __init__(self, transport_or_url: Union[str, ITransport], log_id: str):
-        if isinstance(transport_or_url, str):
-            if transport_or_url.startswith("http"):
-                self.transport = HttpTransport(transport_or_url)
-            else:
-                host, port = transport_or_url.split(":")
-                self.transport = TcpTransport(host, int(port))
+    def __init__(self, transport_or_addr: Union[str, ITransport], log_id: str):
+        if isinstance(transport_or_addr, str):
+            host, port = transport_or_addr.split(":")
+            self.transport = TcpTransport(host, int(port))
         else:
-            self.transport = transport_or_url
+            self.transport = transport_or_addr
         self.log_id = log_id
 
     async def close(self):

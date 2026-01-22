@@ -1,15 +1,14 @@
 import asyncio
 import random
-import multiprocessing
-import time
-import uvicorn
-from mamamia.server.api import app
+import logging
+from mamamia.server.registry import LogRegistry
+from mamamia.server.tcp import TcpFrontend
 from mamamia.client.producer import ProducerClient
 from mamamia.client.consumer import ConsumerClient
 
 
-async def run_producer(log_id: str, count: int):
-    producer = ProducerClient("http://localhost:8001", log_id)
+async def run_producer(addr: str, log_id: str, count: int):
+    producer = ProducerClient(addr, log_id)
     print(f"[Producer] Sending {count} messages...")
     for i in range(count):
         processing_time = random.randint(1, 5)
@@ -19,9 +18,9 @@ async def run_producer(log_id: str, count: int):
 
 
 async def run_consumer(
-    client_id: str, log_id: str, group_id: str, expected: int, results: list
+    client_id: str, addr: str, log_id: str, group_id: str, expected: int, results: list
 ):
-    consumer = ConsumerClient("http://localhost:8001", log_id, group_id, client_id)
+    consumer = ConsumerClient(addr, log_id, group_id, client_id)
     print(f"[Consumer {client_id}] Started.")
 
     while len(results) < expected:
@@ -44,27 +43,26 @@ async def run_consumer(
 
 
 async def main():
-    # Start server in background
-    config = uvicorn.Config(app, host="127.0.0.1", port=8001, log_level="error")
+    # Setup server
+    registry = LogRegistry()
+    registry.start_reaper(interval=10.0)
+    server = TcpFrontend(registry, host="127.0.0.1", port=9001)
 
-    server = uvicorn.Server(config)
-
-    loop = asyncio.get_event_loop()
-    server_task = loop.create_task(server.serve())
-
+    server_task = asyncio.create_task(server.start())
     await asyncio.sleep(1)  # Wait for server
 
+    addr = "127.0.0.1:9001"
     log_id = "test-log"
     group_id = "test-group"
     msg_count = 10
     processed_ids = []
 
-    await run_producer(log_id, msg_count)
+    await run_producer(addr, log_id, msg_count)
 
     # Run two consumers concurrently
     await asyncio.gather(
-        run_consumer("C1", log_id, group_id, msg_count, processed_ids),
-        run_consumer("C2", log_id, group_id, msg_count, processed_ids),
+        run_consumer("C1", addr, log_id, group_id, msg_count, processed_ids),
+        run_consumer("C2", addr, log_id, group_id, msg_count, processed_ids),
     )
 
     print(f"Total processed: {len(processed_ids)}")
@@ -73,8 +71,12 @@ async def main():
     assert len(processed_ids) == msg_count
     assert len(set(processed_ids)) == msg_count
 
-    server.should_exit = True
-    await server_task
+    await server.stop()
+    server_task.cancel()
+    try:
+        await server_task
+    except asyncio.CancelledError:
+        pass
 
 
 if __name__ == "__main__":

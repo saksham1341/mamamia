@@ -1,25 +1,22 @@
 import uuid
 from typing import Any, Optional, Dict, Union
 from mamamia.core.protocol import Command
-from mamamia.client.transport import ITransport, HttpTransport, TcpTransport
+from mamamia.client.transport import ITransport, TcpTransport
 
 
 class ConsumerClient:
     def __init__(
         self,
-        transport_or_url: Union[str, ITransport],
+        transport_or_addr: Union[str, ITransport],
         log_id: str,
         group_id: str,
         client_id: Optional[str] = None,
     ):
-        if isinstance(transport_or_url, str):
-            if transport_or_url.startswith("http"):
-                self.transport = HttpTransport(transport_or_url)
-            else:
-                host, port = transport_or_url.split(":")
-                self.transport = TcpTransport(host, int(port))
+        if isinstance(transport_or_addr, str):
+            host, port = transport_or_addr.split(":")
+            self.transport = TcpTransport(host, int(port))
         else:
-            self.transport = transport_or_url
+            self.transport = transport_or_addr
 
         self.log_id = log_id
         self.group_id = group_id

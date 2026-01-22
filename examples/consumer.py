@@ -4,12 +4,12 @@ from mamamia.client.consumer import ConsumerClient
 
 
 async def main():
-    # Connect to local server on port 8000
+    # Connect to local TCP server on port 9000
     consumer = ConsumerClient(
-        "http://localhost:8000", log_id="demo-log", group_id="demo-group"
+        "localhost:9000", log_id="demo-log", group_id="demo-group"
     )
 
-    print(f"Consumer {consumer.client_id} started. Polling for messages...")
+    print(f"Consumer {consumer.client_id} started via Binary TCP. Polling...")
 
     try:
         while True:

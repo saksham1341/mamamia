@@ -3,10 +3,7 @@ name = "mamamia"
 version = "0.1.0"
 description = "A modular message delivery system with asynchronous processing capabilities."
 dependencies = [
-    "fastapi",
-    "uvicorn",
     "pydantic",
-    "httpx",
     "msgpack",
 ]
 
