@@ -1,0 +1,82 @@
+
+    <html>
+    <head>
+        <title>Mamamia Benchmark Report</title>
+        <style>
+            body { font-family: sans-serif; margin: 40px; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            tr:nth-child(even) { background-color: #f9f9f9; }
+            .header { margin-bottom: 20px; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>Mamamia Benchmark Report</h1>
+            <p>Generated at: 2026-01-22 22:56:38</p>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Scenario</th>
+                    <th>Messages</th>
+                    <th>Producers</th>
+                    <th>Consumers</th>
+                    <th>Prod TPS</th>
+                    <th>Cons TPS</th>
+                    <th>Avg Latency</th>
+                    <th>P95 Latency</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+        <tr>
+            <td>Single Worker Baseline</td>
+            <td>1000</td>
+            <td>1</td>
+            <td>1</td>
+            <td>130.78</td>
+            <td>130.78</td>
+            <td>1953.50ms</td>
+            <td>2750.61ms</td>
+        </tr>
+        
+        <tr>
+            <td>Producer Heavy</td>
+            <td>2000</td>
+            <td>5</td>
+            <td>1</td>
+            <td>148.36</td>
+            <td>148.36</td>
+            <td>6033.19ms</td>
+            <td>8024.97ms</td>
+        </tr>
+        
+        <tr>
+            <td>Consumer Heavy (Atomic JIT)</td>
+            <td>2000</td>
+            <td>1</td>
+            <td>5</td>
+            <td>140.31</td>
+            <td>140.31</td>
+            <td>15.75ms</td>
+            <td>19.13ms</td>
+        </tr>
+        
+        <tr>
+            <td>High Concurrency Stress</td>
+            <td>5000</td>
+            <td>5</td>
+            <td>10</td>
+            <td>137.11</td>
+            <td>137.11</td>
+            <td>159.01ms</td>
+            <td>179.26ms</td>
+        </tr>
+        
+            </tbody>
+        </table>
+    </body>
+    </html>
+    

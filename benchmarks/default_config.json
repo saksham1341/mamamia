@@ -1,0 +1,36 @@
+{
+    "output": {
+        "cli": true,
+        "html": "benchmarks/report.html"
+    },
+    "scenarios": [
+        {
+            "name": "Single Worker Baseline",
+            "msgs": 1000,
+            "producers": 1,
+            "consumers": 1,
+            "batch": 50
+        },
+        {
+            "name": "Producer Heavy",
+            "msgs": 2000,
+            "producers": 5,
+            "consumers": 1,
+            "batch": 50
+        },
+        {
+            "name": "Consumer Heavy (Atomic JIT)",
+            "msgs": 2000,
+            "producers": 1,
+            "consumers": 5,
+            "batch": 50
+        },
+        {
+            "name": "High Concurrency Stress",
+            "msgs": 5000,
+            "producers": 5,
+            "consumers": 10,
+            "batch": 100
+        }
+    ]
+}

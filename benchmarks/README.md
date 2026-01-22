@@ -13,31 +13,42 @@ Note: The benchmark suite performs send and acquire/settle operations sequential
 
 ## Running the Benchmarks
 
+The suite can be configured via a JSON file to run multiple scenarios and generate comparative reports.
+
 ### 1. External Server (Recommended for accuracy)
 To avoid GIL contention between the server and the benchmark client, start the server in a separate terminal:
 ```bash
 uvicorn mamamia.server.api:app --host 127.0.0.1 --port 8000 --workers 1
 ```
 
-Then run the benchmark:
+Then run the benchmark suite:
 ```bash
-python benchmarks/suite.py --url http://localhost:8000 --msgs 5000 --producers 2 --consumers 4 --batch 100
+python benchmarks/suite.py --url http://localhost:8000 --config benchmarks/default_config.json
 ```
 
 ### 2. Internal Server (Convenience)
-Run everything in a single process (useful for quick logic verification):
+Run everything in a single process:
 ```bash
-python benchmarks/suite.py --internal-server --msgs 1000
+python benchmarks/suite.py --internal-server
 ```
 
-## Parameters
+## Configuration
 
-- `--msgs`: Total number of messages to process (default: 1000).
-- `--producers`: Number of concurrent producers (default: 1).
-- `--consumers`: Number of concurrent consumers (default: 1).
-- `--batch`: Number of messages to poll in each consumer batch (default: 50).
-- `--url`: The target server URL.
-- `--internal-server`: If set, the script will spin up its own server instance.
+The config file (`benchmarks/default_config.json`) defines:
+- `output`: CLI and HTML reporting preferences.
+- `scenarios`: A list of benchmark runs with specific `producers`, `consumers`, and `msgs` counts.
+
+Example scenario:
+```json
+{
+    "name": "High Concurrency Stress",
+    "msgs": 5000,
+    "producers": 5,
+    "consumers": 10,
+    "batch": 100
+}
+```
+
 
 ## Profiling
 

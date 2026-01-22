@@ -3,6 +3,9 @@ import time
 import statistics
 import argparse
 import uvicorn
+import json
+import os
+from datetime import datetime
 from mamamia.server.api import app
 from mamamia.client.producer import ProducerClient
 from mamamia.client.consumer import ConsumerClient
@@ -22,7 +25,9 @@ async def run_producer_bench(url, log_id, count, producer_id):
     return count, duration
 
 
-async def run_consumer_bench(url, log_id, group_id, target_count, shared_state):
+async def run_consumer_bench(
+    url, log_id, group_id, target_count, shared_state, batch_size
+):
     consumer = ConsumerClient(url, log_id, group_id)
     start_time = time.perf_counter()
     processed_locally = 0
@@ -50,63 +55,37 @@ async def run_consumer_bench(url, log_id, group_id, target_count, shared_state):
     return processed_locally, duration, latencies
 
 
-async def main():
-    parser = argparse.ArgumentParser(description="Mamamia Benchmarking Suite")
-    parser.add_argument("--url", default="http://localhost:8002", help="Server URL")
-    parser.add_argument(
-        "--msgs", type=int, default=1000, help="Total number of messages"
-    )
-    parser.add_argument("--producers", type=int, default=1, help="Number of producers")
-    parser.add_argument("--consumers", type=int, default=1, help="Number of consumers")
-    parser.add_argument(
-        "--batch",
-        type=int,
-        default=50,
-        help="Batch size for internal log scanning (server-side)",
-    )
-    parser.add_argument(
-        "--internal-server",
-        action="store_true",
-        help="Start an internal server for the test",
-    )
-
-    args = parser.parse_args()
-
+async def run_scenario(url, scenario, internal_server=False):
     server_task = None
     server = None
-    if args.internal_server:
+    if internal_server:
         config = uvicorn.Config(app, host="127.0.0.1", port=8002, log_level="error")
         server = uvicorn.Server(config)
         server_task = asyncio.create_task(server.serve())
-        await asyncio.sleep(1)  # Wait for server startup
-        print("Internal server started.")
+        await asyncio.sleep(1)
 
-    log_id = f"bench-log-{int(time.time())}"
+    log_id = f"bench-{int(time.time())}"
     group_id = "bench-group"
-
-    print(f"\n--- Starting Concurrent Benchmark ---")
-    print(f"Total Messages: {args.msgs}")
-    print(f"Producers:      {args.producers}")
-    print(f"Consumers:      {args.consumers}")
+    msgs = scenario["msgs"]
+    producers = scenario["producers"]
+    consumers = scenario["consumers"]
+    batch = scenario.get("batch", 50)
 
     start_bench = time.perf_counter()
 
-    # Distribute messages among producers
-    msgs_per_producer = args.msgs // args.producers
+    msgs_per_producer = msgs // producers
     producer_tasks = []
-    for i in range(args.producers):
-        count = msgs_per_producer + (1 if i < args.msgs % args.producers else 0)
-        producer_tasks.append(run_producer_bench(args.url, log_id, count, i))
+    for i in range(producers):
+        count = msgs_per_producer + (1 if i < msgs % producers else 0)
+        producer_tasks.append(run_producer_bench(url, log_id, count, i))
 
-    # Shared state for consumers to know when to stop
     shared_state = {"processed": 0}
     consumer_tasks = []
-    for i in range(args.consumers):
+    for i in range(consumers):
         consumer_tasks.append(
-            run_consumer_bench(args.url, log_id, group_id, args.msgs, shared_state)
+            run_consumer_bench(url, log_id, group_id, msgs, shared_state, batch)
         )
 
-    # Run producers and consumers in parallel
     results = await asyncio.gather(
         asyncio.gather(*producer_tasks), asyncio.gather(*consumer_tasks)
     )
@@ -114,37 +93,137 @@ async def main():
     total_duration = time.perf_counter() - start_bench
     p_results, c_results = results
 
-    total_p_count = sum(r[0] for r in p_results)
-    total_c_count = sum(r[0] for r in c_results)
-
     all_latencies = []
     for r in c_results:
         all_latencies.extend(r[2])
 
-    print(f"\nProducer Results (Total):")
-    print(f"  Messages:   {total_p_count}")
-    print(f"  Throughput: {total_p_count / total_duration:.2f} msg/s (aggregate)")
+    p_throughput = msgs / total_duration
+    c_throughput = msgs / total_duration
 
-    print(f"\nConsumer Results (Total):")
-    print(f"  Messages:   {total_c_count}")
-    print(f"  Throughput: {total_c_count / total_duration:.2f} msg/s (aggregate)")
-
-    print(f"\nTotal Test Duration: {total_duration:.2f}s")
-
-    if all_latencies:
-        print(f"\nLatency Statistics:")
-        print(f"  Avg E2E Latency: {statistics.mean(all_latencies) * 1000:.2f}ms")
-        print(f"  Min Latency:     {min(all_latencies) * 1000:.2f}ms")
-        print(f"  Max Latency:     {max(all_latencies) * 1000:.2f}ms")
-        if len(all_latencies) > 1:
-            print(
-                f"  P95 Latency:     {statistics.quantiles(all_latencies, n=20)[18] * 1000:.2f}ms"
-            )
+    metrics = {
+        "name": scenario["name"],
+        "msgs": msgs,
+        "producers": producers,
+        "consumers": consumers,
+        "duration": total_duration,
+        "p_throughput": p_throughput,
+        "c_throughput": c_throughput,
+        "avg_latency": statistics.mean(all_latencies) * 1000 if all_latencies else 0,
+        "p95_latency": statistics.quantiles(all_latencies, n=20)[18] * 1000
+        if len(all_latencies) > 1
+        else 0,
+    }
 
     if server_task and server:
         server.should_exit = True
         await server_task
-        print("\nInternal server stopped.")
+
+    return metrics
+
+
+def generate_html_report(results, output_path):
+    rows = ""
+    for r in results:
+        rows += f"""
+        <tr>
+            <td>{r["name"]}</td>
+            <td>{r["msgs"]}</td>
+            <td>{r["producers"]}</td>
+            <td>{r["consumers"]}</td>
+            <td>{r["p_throughput"]:.2f}</td>
+            <td>{r["c_throughput"]:.2f}</td>
+            <td>{r["avg_latency"]:.2f}ms</td>
+            <td>{r["p95_latency"]:.2f}ms</td>
+        </tr>
+        """
+
+    html = f"""
+    <html>
+    <head>
+        <title>Mamamia Benchmark Report</title>
+        <style>
+            body {{ font-family: sans-serif; margin: 40px; }}
+            table {{ border-collapse: collapse; width: 100%; }}
+            th, td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
+            th {{ background-color: #f2f2f2; }}
+            tr:nth-child(even) {{ background-color: #f9f9f9; }}
+            .header {{ margin-bottom: 20px; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>Mamamia Benchmark Report</h1>
+            <p>Generated at: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Scenario</th>
+                    <th>Messages</th>
+                    <th>Producers</th>
+                    <th>Consumers</th>
+                    <th>Prod TPS</th>
+                    <th>Cons TPS</th>
+                    <th>Avg Latency</th>
+                    <th>P95 Latency</th>
+                </tr>
+            </thead>
+            <tbody>
+                {rows}
+            </tbody>
+        </table>
+    </body>
+    </html>
+    """
+    with open(output_path, "w") as f:
+        f.write(html)
+
+
+def print_cli_report(results):
+    print("\n" + "=" * 80)
+    print(f"{'Scenario':<30} | {'TPS':<10} | {'Avg Lat':<10} | {'P95 Lat':<10}")
+    print("-" * 80)
+    for r in results:
+        print(
+            f"{r['name']:<30} | {r['c_throughput']:<10.2f} | {r['avg_latency']:<10.2f} | {r['p95_latency']:<10.2f}"
+        )
+    print("=" * 80 + "\n")
+
+
+async def main():
+    parser = argparse.ArgumentParser(description="Mamamia Benchmarking Suite")
+    parser.add_argument(
+        "--config", default="benchmarks/default_config.json", help="Path to config file"
+    )
+    parser.add_argument(
+        "--url", default="http://localhost:8002", help="Server URL (if not internal)"
+    )
+    parser.add_argument(
+        "--internal-server", action="store_true", help="Use internal server"
+    )
+
+    args = parser.parse_args()
+
+    if not os.path.exists(args.config):
+        print(f"Error: Config file {args.config} not found.")
+        return
+
+    with open(args.config, "r") as f:
+        config = json.load(f)
+
+    results = []
+    for scenario in config["scenarios"]:
+        print(f"Running scenario: {scenario['name']}...")
+        metrics = await run_scenario(args.url, scenario, args.internal_server)
+        results.append(metrics)
+
+    if config.get("output", {}).get("cli", True):
+        print_cli_report(results)
+
+    html_path = config.get("output", {}).get("html")
+    if html_path:
+        generate_html_report(results, html_path)
+        print(f"HTML report generated at: {html_path}")
 
 
 if __name__ == "__main__":
